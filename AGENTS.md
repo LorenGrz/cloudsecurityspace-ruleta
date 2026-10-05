@@ -27,10 +27,16 @@ Current event setup:
 
 Live state:
 
-- Form: will be deployed at https://cloudsecurityspace-ruleta.vercel.app
-  (Vercel project `cloudsecurityspace-ruleta`, root `apps/form`, region
-  `gru1`) — **pending**.
-- Supabase project `cloudsecurityspace-ruleta` (`sa-east-1`) — **pending**.
+- Form deployed: https://cloudsecurityspace-ruleta.vercel.app (Vercel project
+  `cloudsecurityspace-ruleta`, `prj_xTcTc1mGCXiGAFRtHbuYZdnN0nAW`, Git-linked
+  to `main`, root `apps/form`, functions in `gru1`). Env:
+  `NEXT_PUBLIC_SUPABASE_URL`, `SUPABASE_ANON_KEY`.
+- Supabase project `cloudsecurityspace-ruleta` (`fwvsdmlfjnubtzdvkpxd`,
+  sa-east-1) with `supabase/schema.sql` applied.
+- Ruleta runs locally (`pnpm dev`, :3100) with the service_role key in
+  `apps/ruleta/.env.local`.
+- After the event (Ekoparty ends 2026-10-09): export winners CSV, then pause
+  both the Supabase and the Vercel project.
 
 ## What you're working with
 
