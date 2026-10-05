@@ -1,12 +1,12 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
-import { Montserrat } from "next/font/google";
+import { Inter } from "next/font/google";
 import { siteConfig } from "@openruleta/config";
 import "./globals.css";
 
 // To change the font, swap this import (see next/font/google) and update
 // `--font-sans` in packages/ui/src/theme.css.
-const brandFont = Montserrat({
+const brandFont = Inter({
   variable: "--font-brand",
   subsets: ["latin"],
   weight: ["400", "500", "600", "700"],

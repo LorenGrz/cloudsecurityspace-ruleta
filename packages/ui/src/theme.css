@@ -7,14 +7,14 @@
  */
 
 @theme {
-  --color-primary: #2563eb;
-  --color-primary-deep: #1e3a8a;
+  --color-primary: #2a63e0;
+  --color-primary-deep: #070b12;
   --color-primary-hover: #1d4ed8;
-  --color-ink: #0b1220;
-  --color-surface: #ffffff;
-  --color-tint: #eef2fb;
-  --color-input-border: #cbd5e1;
-  --color-error: #d64545;
+  --color-ink: #e8edf5;
+  --color-surface: #0a1020;
+  --color-tint: #141830;
+  --color-input-border: #334463;
+  --color-error: #ef4444;
 
   --font-sans:
     var(--font-brand), ui-sans-serif, system-ui, -apple-system, sans-serif;

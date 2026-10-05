@@ -28,6 +28,8 @@ function Card({ collaborator }: { collaborator: Collaborator }) {
 }
 
 export function CollaboratorCarousel() {
+  if (siteConfig.collaborators.length === 0) return null;
+
   // A longer list needs a longer loop to keep the scroll speed even.
   const duration = 45 + Math.max(0, siteConfig.collaborators.length - 8) * 5;
   return (

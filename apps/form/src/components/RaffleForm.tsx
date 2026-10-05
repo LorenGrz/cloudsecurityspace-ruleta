@@ -106,7 +106,7 @@ export function RaffleForm() {
   }
 
   return (
-    <div className="w-full max-w-[480px] rounded-3xl bg-surface p-6 shadow-[0_20px_60px_rgba(0,30,80,0.25)] md:p-7">
+    <div className="w-full max-w-[480px] rounded-3xl bg-surface p-6 shadow-[0_20px_60px_rgba(2,6,16,0.55)] md:p-7">
       <Wordmark
         src={siteConfig.assets.logo}
         alt={m.logoAlt}
@@ -116,7 +116,7 @@ export function RaffleForm() {
         <h1 className="text-xl font-bold text-primary md:text-2xl">
           {m.heading}
         </h1>
-        <p className="mt-1 text-xs text-slate-600">{m.subtitle}</p>
+        <p className="mt-1 text-xs text-ink/70">{m.subtitle}</p>
       </header>
 
       <form noValidate onSubmit={handleSubmit} className="flex flex-col gap-3">
@@ -184,7 +184,7 @@ export function RaffleForm() {
           </Field>
         )}
 
-        <label className="flex items-start gap-2.5 text-xs text-slate-600">
+        <label className="flex items-start gap-2.5 text-xs text-ink/70">
           <input
             type="checkbox"
             checked={terms}
@@ -217,7 +217,7 @@ export function RaffleForm() {
 
 function inputClass(error?: string) {
   return [
-    "w-full rounded-lg border bg-white px-4 py-2.5 text-ink outline-none transition",
+    "w-full rounded-lg border bg-tint px-4 py-2.5 text-ink outline-none transition",
     "focus:border-primary focus:ring-2 focus:ring-primary/40",
     error ? "border-error" : "border-input-border",
   ].join(" ");
@@ -245,7 +245,7 @@ function Field({
       {error ? (
         <span className="text-sm font-medium text-error">{error}</span>
       ) : hint ? (
-        <span className="text-xs text-slate-500">{hint}</span>
+        <span className="text-xs text-ink/55">{hint}</span>
       ) : null}
     </div>
   );
@@ -253,7 +253,7 @@ function Field({
 
 function SuccessTicket({ name, docLast3 }: { name: string; docLast3: string }) {
   return (
-    <div className="flex w-full max-w-[480px] flex-col items-center rounded-3xl bg-surface p-7 text-center shadow-[0_20px_60px_rgba(0,30,80,0.25)]">
+    <div className="flex w-full max-w-[480px] flex-col items-center rounded-3xl bg-surface p-7 text-center shadow-[0_20px_60px_rgba(2,6,16,0.55)]">
       <div className="mb-4 grid h-14 w-14 place-items-center rounded-full bg-primary/10">
         <svg viewBox="0 0 24 24" className="h-9 w-9 text-primary" fill="none">
           <path
@@ -270,24 +270,24 @@ function SuccessTicket({ name, docLast3 }: { name: string; docLast3: string }) {
       <div className="relative mt-6 w-full overflow-hidden rounded-2xl border border-dashed border-input-border bg-tint p-6">
         <span className="absolute -left-3 top-1/2 h-6 w-6 -translate-y-1/2 rounded-full bg-surface" />
         <span className="absolute -right-3 top-1/2 h-6 w-6 -translate-y-1/2 rounded-full bg-surface" />
-        <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">
+        <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-ink/55">
           {m.ticketLabel}
         </p>
         <p className="mt-2 text-xl font-bold text-primary">{name}</p>
         {doc.enabled && docLast3 && (
-          <p className="font-mono text-sm text-slate-600">
+          <p className="font-mono text-sm text-ink/70">
             {doc.displayLabel} {maskDoc(docLast3, doc.maskGlyph)}
           </p>
         )}
         <div className="mt-4 flex items-center justify-between border-t border-dashed border-input-border pt-4">
-          <span className="text-sm text-slate-500">{m.statusLabel}</span>
-          <span className="rounded-md bg-primary/15 px-3 py-1 text-xs font-bold text-primary">
+          <span className="text-sm text-ink/55">{m.statusLabel}</span>
+          <span className="rounded-md bg-primary px-3 py-1 text-xs font-bold text-white">
             {m.statusValue}
           </span>
         </div>
       </div>
 
-      <p className="mt-6 text-xs text-slate-500">{m.deviceNote}</p>
+      <p className="mt-6 text-xs text-ink/55">{m.deviceNote}</p>
     </div>
   );
 }

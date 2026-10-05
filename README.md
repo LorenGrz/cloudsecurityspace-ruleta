@@ -1,22 +1,19 @@
-# OpenRuleta
+# Cloud Security Space Ruleta — Sorteo Cloud Security Space · Ekoparty 2026
 
-A self-hostable raffle toolkit, backed by Supabase. Two small Next.js apps that
-share one database:
+Sorteo para **Cloud Security Space**, un village de seguridad ofensiva y
+defensiva en AWS, Azure y GCP en **Ekoparty 2026** (7–9 de octubre, CEC Buenos
+Aires — https://cloudsecurityspace.org/es). Dos apps Next.js que comparten una
+misma base de datos:
 
-- **`apps/form`** — a public, single-screen sign-up form. Share it by QR code;
-  people enter their details from their phone and they're in the draw. Deploy it
-  anywhere (Vercel, Netlify, a VPS).
-- **`apps/ruleta`** — a winner-picker wheel for whoever runs the draw. Spin it,
-  assign a prize, mark winners (they stay out of later spins), export a CSV.
-  Run it on your laptop, or host it behind a password.
+- **`apps/form`** — formulario público de inscripción. Se comparte por QR; la
+  gente carga sus datos desde el celular y queda anotada en el sorteo. Se
+  despliega en Vercel.
+- **`apps/ruleta`** — ruleta para quien conduce el sorteo en vivo: gira,
+  asigna un premio, marca ganadores (quedan afuera de los próximos giros) y
+  exporta un CSV. Se corre en una notebook, en la red local.
 
-> Built for and used live at **Data Saturday LATAM Argentina 2026**: ~300
-> attendees signed up from their phones during the event while the wheel drew
-> winners on stage, all against a single free-tier Supabase project.
->
-> This repo is the generic, de-branded version. The default event name, copy,
-> colours, sponsor/collaborator lists and logos are placeholders — make them
-> yours in one file (see [Make it yours](#make-it-yours)).
+Basado en [OpenRuleta](https://github.com/LorenGrz/OpenRuleta) — este repo es
+el fork con marca y copys propios del evento.
 
 ## Screenshots
 
