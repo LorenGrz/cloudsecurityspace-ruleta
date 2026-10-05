@@ -4,6 +4,34 @@ Guide for an AI agent (or a person) adapting this repo to a specific event and
 shipping it. The [`README.md`](README.md) has the narrative version; this file is
 the checklist. Read both.
 
+## Project context
+
+Fork of [OpenRuleta](https://github.com/LorenGrz/OpenRuleta) branded for
+**Cloud Security Space · Ekoparty 2026** (a village at Ekoparty 2026, 7–9 Oct
+2026, CEC Buenos Aires — "Aprendé, atacá y defendé la nube", offensive and
+defensive security on AWS, Azure and GCP; https://cloudsecurityspace.org/es):
+a public raffle sign-up form + a local winner-picker wheel, sharing one
+Supabase database. The customization checklist below comes from the original
+template and is still accurate for how the repo is structured — minus the
+"generic template" guardrail: this fork intentionally carries real event data
+(see Guardrails).
+
+Current event setup:
+
+- Copy in `packages/config/src/index.ts` is Spanish (voseo).
+- Palette in `packages/ui/src/theme.css`: `#070b12` base, `#0a1020`/`#141830`
+  dark surfaces, `#2a63e0` primary, `#e11d2e` brand red (wheel rim /
+  confetti). Font: Inter (`apps/*/src/app/layout.tsx`).
+- No collaborators/allies for this event — `siteConfig.collaborators` is `[]`
+  and `CollaboratorCarousel` renders `null` when the list is empty.
+
+Live state:
+
+- Form: will be deployed at https://cloudsecurityspace-ruleta.vercel.app
+  (Vercel project `cloudsecurityspace-ruleta`, root `apps/form`, region
+  `gru1`) — **pending**.
+- Supabase project `cloudsecurityspace-ruleta` (`sa-east-1`) — **pending**.
+
 ## What you're working with
 
 pnpm workspace, Next.js 16 + React 19 + TypeScript + Tailwind v4. Two apps, one
@@ -203,8 +231,10 @@ Uses the **service_role key** and its API routes (incl.
 - Keep `packages/core` and `packages/ui` free of any `@openruleta/config` import —
   apps wire config into them.
 - User-facing strings go in `packages/config`, never inline in components.
-- No real third-party logos or event-specific data committed to this repo — it's
-  the generic template. Event forks carry their own assets.
+- This is the Cloud Security Space · Ekoparty 2026 event fork — unlike the
+  generic OpenRuleta template, it does carry real sponsor logos and
+  event-specific copy on purpose. Don't revert it back toward placeholder
+  content.
 - Don't commit `apps/*/AGENTS.md` or `apps/*/CLAUDE.md` — `next dev` regenerates
   them and they're git-ignored.
 - `next-env.d.ts` flips between `.next/dev/` and `.next/types/` paths depending on

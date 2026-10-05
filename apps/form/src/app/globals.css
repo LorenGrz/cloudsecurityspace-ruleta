@@ -5,7 +5,7 @@
 @source "../../../../packages/ui/src";
 
 :root {
-  color-scheme: light;
+  color-scheme: dark;
 }
 
 /* The blue at the end of the gradient sits behind everything so no white shows

@@ -28,6 +28,8 @@ function Card({ collaborator }: { collaborator: Collaborator }) {
 }
 
 export function CollaboratorCarousel() {
+  if (siteConfig.collaborators.length === 0) return null;
+
   const duration = 40 + Math.max(0, siteConfig.collaborators.length - 8) * 4;
   return (
     <Marquee
