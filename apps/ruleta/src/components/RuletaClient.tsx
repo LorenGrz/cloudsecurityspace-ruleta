@@ -6,14 +6,22 @@ import { siteConfig } from "@openruleta/config";
 import { Wordmark } from "@openruleta/ui";
 
 import { CollaboratorCarousel } from "@/components/CollaboratorCarousel";
+import { DrawModeSelector } from "@/components/draw/DrawModeSelector";
+import { getDrawMode } from "@/components/draw/registry";
+import type { DrawModeId } from "@/components/draw/types";
+import { useDrawMode } from "@/components/draw/useDrawMode";
+import { useReducedMotion } from "@/components/draw/useReducedMotion";
 import { EditableTitle, useRaffleTitle } from "@/components/EditableTitle";
+import { HeaderMenu } from "@/components/HeaderMenu";
+import { EmailPreviewModal } from "@/components/EmailPreviewModal";
 import { ParticipantsPanel } from "@/components/ParticipantsPanel";
 import { QrOverlay } from "@/components/QrOverlay";
 import { SponsorCarousel } from "@/components/SponsorCarousel";
-import { Wheel } from "@/components/Wheel";
 import { WinnerModal } from "@/components/WinnerModal";
 import { WinnersModal } from "@/components/WinnersModal";
-import { playSpinTicks } from "@/lib/spinSound";
+import { downloadCsv, toCsv } from "@/lib/csv";
+import { useWinnerNotification } from "@/lib/useWinnerNotification";
+import { useSoundEngine } from "@/lib/sound/useSoundEngine";
 import {
   confirmWinner as confirmWinnerApi,
   deleteAllParticipants as deleteAllApi,
@@ -27,35 +35,48 @@ import {
 
 const POLL_MS = 5000;
 const m = siteConfig.ruleta.messages;
-const { wheelSpins: WHEEL_SPINS, wheelDurationMs: WHEEL_DURATION_MS } =
-  siteConfig.ruleta;
 const SOUND_KEY = `${siteConfig.slug}-ruleta-sound`;
 const fill = (s: string, vars: Record<string, string>) =>
   Object.entries(vars).reduce((acc, [k, v]) => acc.replaceAll(`{${k}}`, v), s);
 
-function csvCell(value: string): string {
-  return /[",\n]/.test(value) ? `"${value.replace(/"/g, '""')}"` : value;
+function csvFilename(prefix: string): string {
+  return `${prefix}-${new Date().toISOString().slice(0, 10)}.csv`;
 }
 
 function downloadWinnersCsv(winners: Participant[]): void {
-  const header = siteConfig.ruleta.csv.headers;
-  const rows = winners.map((w) =>
-    [w.name, w.email, w.docLast3, w.prize ?? "", w.wonAt ?? ""]
-      .map(csvCell)
-      .join(","),
+  const csv = toCsv(
+    siteConfig.ruleta.csv.headers,
+    winners.map((w) => [
+      w.name,
+      w.email,
+      w.docLast3,
+      w.prize ?? "",
+      w.wonAt ?? "",
+    ]),
   );
-  const csv = `${header.join(",")}\n${rows.join("\n")}\n`;
-  const blob = new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = `${siteConfig.ruleta.csv.filenamePrefix}-${new Date()
-    .toISOString()
-    .slice(0, 10)}.csv`;
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  URL.revokeObjectURL(url);
+  downloadCsv(csvFilename(siteConfig.ruleta.csv.filenamePrefix), csv);
+}
+
+// All participants, winners included — doc is exported raw (not masked):
+// the stored value is already just the last 3 digits, so masking it in the
+// CSV would only hide data the operator (who holds the service_role key)
+// already has full access to, with no added privacy benefit.
+function downloadParticipantsCsv(participants: Participant[]): void {
+  const csv = toCsv(
+    siteConfig.ruleta.csv.participantsHeaders,
+    participants.map((p) => [
+      p.name,
+      p.email,
+      p.docLast3,
+      p.createdAt,
+      p.wonAt ?? "",
+      p.prize ?? "",
+    ]),
+  );
+  downloadCsv(
+    csvFilename(siteConfig.ruleta.csv.participantsFilenamePrefix),
+    csv,
+  );
 }
 
 export function RuletaClient() {
@@ -96,13 +117,30 @@ export function RuletaClient() {
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
 
-  const [rotation, setRotation] = useState(0);
   const [spinning, setSpinning] = useState(false);
   const [modalWinner, setModalWinner] = useState<Participant | null>(null);
 
   // Frozen list the current spin resolves against.
   const poolRef = useRef<Participant[]>([]);
   const pendingIndexRef = useRef(0);
+  // True only while a spin's animation is actually in flight (I2): guards
+  // handleSettled against a stray call from a remounted draw mode (e.g. one
+  // triggered by a mode switch from another tab) reopening/rewinding the
+  // winner modal.
+  const spinningRef = useRef(false);
+
+  // Draw modes only animate towards the winner spin() already picked.
+  const [drawMode, setDrawMode] = useDrawMode();
+  const [draw, setDraw] = useState<{
+    runId: number;
+    pool: Participant[];
+    winnerIndex: number;
+    // Mode locked in at spin() time (I2): a mode switch from another tab
+    // must not remount the running scene mid-draw.
+    mode: DrawModeId;
+  } | null>(null);
+  const sound = useSoundEngine(soundOn);
+  const reducedMotion = useReducedMotion();
 
   const winners = useMemo(
     () =>
@@ -133,6 +171,17 @@ export function RuletaClient() {
     const data = await fetchParticipants();
     applyList(data.participants);
   }, [applyList]);
+
+  // Winner email (simulated): keep the open winner modal and the list fresh.
+  const notification = useWinnerNotification({
+    onNotified: useCallback(
+      (id: string, notifiedAt: string) => {
+        setModalWinner((w) => (w && w.id === id ? { ...w, notifiedAt } : w));
+        reload().catch(() => setLoadError(m.loadFailed));
+      },
+      [reload],
+    ),
+  });
 
   // Initial fetch + auto-poll. setState only inside promise callbacks; polling
   // pauses while spinning, a modal is open, or a write is in flight.
@@ -170,6 +219,13 @@ export function RuletaClient() {
   }
 
   const canSpin = activePool.length > 0 && !spinning && !modalWinner && !busy;
+  // The frozen pool and winner stay on stage until the winner is confirmed or skipped.
+  const drawInFlight = draw !== null && (spinning || modalWinner !== null);
+  // While a draw is in flight, keep rendering the mode it was spun with
+  // (I2): a mode switch from another tab must not remount the running
+  // scene, which would replay its animation and call onSettled() again.
+  const renderedDrawMode = drawInFlight ? draw.mode : drawMode;
+  const ActiveDrawMode = getDrawMode(renderedDrawMode).Component;
 
   function spin() {
     if (!canSpin) return;
@@ -178,21 +234,23 @@ export function RuletaClient() {
     poolRef.current = pool;
     pendingIndexRef.current = idx;
 
-    if (soundOn) playSpinTicks(WHEEL_DURATION_MS);
-
-    const seg = 360 / pool.length;
-    const mid = idx * seg + seg / 2;
-    setRotation((prev) => {
-      const prevMod = ((prev % 360) + 360) % 360;
-      const desiredMod = (360 - mid) % 360;
-      const delta = (desiredMod - prevMod + 360) % 360;
-      const jitter = (Math.random() - 0.5) * seg * 0.6;
-      return prev + 360 * WHEEL_SPINS + delta + jitter;
-    });
+    sound.unlock();
+    spinningRef.current = true;
+    setDraw((prev) => ({
+      runId: (prev?.runId ?? 0) + 1,
+      pool,
+      winnerIndex: idx,
+      mode: drawMode,
+    }));
     setSpinning(true);
   }
 
   function handleSettled() {
+    // Ignore a call with no spin in flight (I2): a remounted draw mode
+    // replays its animation to completion, which would otherwise reopen
+    // the winner modal or rewind it to the "confirm" step after it settled.
+    if (!spinningRef.current) return;
+    spinningRef.current = false;
     setSpinning(false);
     const w = poolRef.current[pendingIndexRef.current];
     if (w) setModalWinner(w);
@@ -203,11 +261,21 @@ export function RuletaClient() {
     setBusy(true);
     setLoadError(null);
     try {
-      await confirmWinnerApi(modalWinner.id, prize);
-      await reload();
-      setModalWinner(null);
+      const confirmed = await confirmWinnerApi(modalWinner.id, prize);
+      // Keep the modal open on its post-confirm step (notify by email). This
+      // must happen even if the refresh below fails (M1): the winner is
+      // already confirmed server-side, so a failed refresh is a separate,
+      // lesser problem and must not be reported as a failed confirmation.
+      setModalWinner(confirmed);
     } catch {
       setLoadError(m.confirmFailed);
+      setBusy(false);
+      return;
+    }
+    try {
+      await reload();
+    } catch {
+      setLoadError(m.reloadFailed);
     } finally {
       setBusy(false);
     }
@@ -314,14 +382,11 @@ export function RuletaClient() {
           className="h-11"
         />
         <div className="flex items-center gap-3">
-          <button
-            onClick={toggleSound}
-            title={soundOn ? m.muteSound : m.unmuteSound}
-            aria-label={soundOn ? m.muteSound : m.unmuteSound}
-            className="rounded-lg bg-white/10 px-3 py-2 text-sm text-white transition hover:bg-white/20"
-          >
-            {soundOn ? "🔊" : "🔇"}
-          </button>
+          <DrawModeSelector
+            value={drawMode}
+            onChange={setDrawMode}
+            disabled={spinning || modalWinner !== null}
+          />
           <button
             onClick={() => setShowQr(true)}
             className="rounded-lg bg-white/10 px-4 py-2 text-sm font-semibold text-white transition hover:bg-white/20"
@@ -332,6 +397,17 @@ export function RuletaClient() {
             <span className="h-1.5 w-1.5 rounded-full bg-green-400" />
             {m.privateBadge}
           </span>
+          <HeaderMenu
+            onRefresh={manualRefresh}
+            refreshing={refreshing}
+            onExportParticipantsCsv={() =>
+              downloadParticipantsCsv(participants)
+            }
+            onDeleteAll={deleteAllParticipants}
+            deletingAll={deletingAll}
+            soundOn={soundOn}
+            onToggleSound={toggleSound}
+          />
         </div>
       </header>
 
@@ -344,13 +420,17 @@ export function RuletaClient() {
           <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-6 px-8">
             <EditableTitle />
 
-            <Wheel
-              entries={activePool.map((p) => ({ id: p.id, name: p.name }))}
-              rotation={rotation}
-              durationMs={WHEEL_DURATION_MS}
-              spinning={spinning}
-              onSettled={handleSettled}
-            />
+            <div className="flex min-h-0 w-full flex-1 items-center justify-center">
+              <ActiveDrawMode
+                key={renderedDrawMode}
+                pool={drawInFlight ? draw.pool : activePool}
+                winnerIndex={drawInFlight ? draw.winnerIndex : null}
+                runId={draw?.runId ?? 0}
+                onSettled={handleSettled}
+                sound={sound}
+                reducedMotion={reducedMotion}
+              />
+            </div>
 
             <div className="flex flex-col items-center gap-3">
               <button
@@ -400,13 +480,9 @@ export function RuletaClient() {
             participants={participants}
             removedIds={skipIds}
             newestId={newestId}
-            refreshing={refreshing}
             lastUpdated={lastUpdated}
-            onRefresh={manualRefresh}
             onDelete={deleteParticipant}
             deletingId={deletingId}
-            onDeleteAll={deleteAllParticipants}
-            deletingAll={deletingAll}
           />
         </div>
       </div>
@@ -418,6 +494,8 @@ export function RuletaClient() {
           defaultPrize={raffleTitle}
           onConfirm={confirmWinner}
           onSpinAgain={removeAndReopen}
+          onNotify={() => notification.notify(modalWinner)}
+          onClose={() => setModalWinner(null)}
         />
       )}
 
@@ -429,6 +507,18 @@ export function RuletaClient() {
           onExportCsv={() => downloadWinnersCsv(winners)}
           onUndo={undoWinner}
           onEditPrize={editPrize}
+          onNotify={notification.notify}
+        />
+      )}
+
+      {notification.state.status !== "idle" && (
+        <EmailPreviewModal
+          state={notification.state}
+          onClose={notification.close}
+          onRetry={() =>
+            notification.state.status !== "idle" &&
+            notification.notify(notification.state.participant)
+          }
         />
       )}
 

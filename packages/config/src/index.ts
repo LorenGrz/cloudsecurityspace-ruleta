@@ -67,6 +67,58 @@ export type PosterConfig = {
   logoCard?: boolean;
 };
 
+/**
+ * Winner email (simulated — OpenRuleta sends nothing). `{name}` and `{prize}`
+ * are substituted in `subject` and `body`; `body` is plain text, blank lines
+ * become paragraphs in the HTML preview.
+ */
+export type WinnerEmailConfig = {
+  /** "Display Name <address>" or a bare address. */
+  from: string;
+  subject: string;
+  body: string;
+};
+
+/** Labels for the four draw modes, keyed by mode id (see apps/ruleta draw registry). */
+export type DrawModeLabels = {
+  wheel: string;
+  slot: string;
+  grid: string;
+  plinko: string;
+};
+
+/**
+ * Draw-mode presentation: selector copy, mode labels and the colours the
+ * slot / grid / plinko modes paint with (the wheel keeps `wheelSegmentFills`).
+ */
+export type DrawModesConfig = {
+  /** Accessible name of the mode selector in the header. */
+  selectorLabel: string;
+  labels: DrawModeLabels;
+  /** Caption above the live name banner on a wheel too crowded for labels. */
+  pointerLabel: string;
+  /** Colour reserved for the winning moment (grid pulse, slot name, plinko PRIZE bin). */
+  winColor: string;
+  /** Text drawn on top of `winColor`. */
+  winInk: string;
+  plinko: {
+    /** Label of the single golden bin. */
+    prizeLabel: string;
+    /** Label of every other bin. */
+    outLabel: string;
+    /** Heading of the side ticker listing balls as they land. */
+    tickerHeading: string;
+    /** Accessible description of the canvas board. */
+    boardAriaLabel: string;
+    /** Peg colour. */
+    pegColor: string;
+    /** Ball colours, cycled per participant. */
+    ballColors: string[];
+    /** Initials drawn on the balls. */
+    ballInk: string;
+  };
+};
+
 export type SiteConfig = {
   /** Product / event name. */
   name: string;
@@ -150,10 +202,22 @@ export type SiteConfig = {
     wheelSegmentFills: [string, string];
     /** Solid colour of the wheel rim / single-entry disc. */
     wheelRimColor: string;
+    /** Colour of the exterior "corona" name labels, drawn outside the wheel. */
+    wheelLabelInk: string;
+    /** Alternating ink for interior radial labels, one per `wheelSegmentFills` entry. */
+    wheelLabelInks: [string, string];
+    /** Draw modes (wheel, slot, grid, plinko) — see {@link DrawModesConfig}. */
+    drawModes: DrawModesConfig;
     csv: {
       filenamePrefix: string;
       headers: [string, string, string, string, string];
+      /** Filename prefix for the "export all participants" CSV. */
+      participantsFilenamePrefix: string;
+      /** Columns for the "export all participants" CSV (incl. winners). */
+      participantsHeaders: [string, string, string, string, string, string];
     };
+    /** Winner email — see {@link WinnerEmailConfig}. */
+    email: WinnerEmailConfig;
     messages: {
       sponsorsLabel: string;
       collaboratorsLabel: string;
@@ -163,6 +227,11 @@ export type SiteConfig = {
       close: string;
       muteSound: string;
       unmuteSound: string;
+      /** Header hamburger menu. */
+      menu: string;
+      menuOpen: string;
+      menuClose: string;
+      exportParticipantsCsv: string;
       titleAriaLabel: string;
       editTitle: string;
       spin: string;
@@ -204,6 +273,7 @@ export type SiteConfig = {
       /** Load / write errors surfaced under the wheel. */
       loadFailed: string;
       confirmFailed: string;
+      reloadFailed: string;
       prizeFailed: string;
       undoFailed: string;
       deleteFailed: string;
@@ -218,6 +288,29 @@ export type SiteConfig = {
       prizeRouteFailed: string;
       undoRouteFailed: string;
       resetRouteFailed: string;
+      /** Winner email (simulated). {name} / {time} / {action} are substituted. */
+      notifyByEmail: string;
+      notifyAriaLabel: string;
+      resendEmail: string;
+      notifiedBadge: string;
+      winnerConfirmed: string;
+      done: string;
+      emailPreviewHeading: string;
+      emailTo: string;
+      emailFrom: string;
+      emailSubject: string;
+      emailBody: string;
+      emailMessageId: string;
+      emailSending: string;
+      emailSent: string;
+      emailSimulatedNote: string;
+      notifyFailed: string;
+      retry: string;
+      /** Notify route-handler error bodies. */
+      notifyNotWinner: string;
+      notifyNoPrize: string;
+      notifyInvalidId: string;
+      notifyRouteFailed: string;
     };
   };
 
@@ -325,9 +418,48 @@ export const siteConfig = defineSiteConfig({
     confettiColors: ["#0a1020", "#2a63e0", "#e11d2e", "#ffffff"],
     wheelSegmentFills: ["#2a63e0", "#0a1020"],
     wheelRimColor: "#e11d2e",
+    wheelLabelInk: "#ffffff",
+    // Los dos fills de segmento son oscuros: el blanco se lee bien sobre ambos.
+    wheelLabelInks: ["#ffffff", "#ffffff"],
+    drawModes: {
+      selectorLabel: "Modo de sorteo",
+      labels: {
+        wheel: "Ruleta",
+        slot: "Tragamonedas",
+        grid: "Grilla",
+        plinko: "Plinko",
+      },
+      pointerLabel: "Bajo el puntero",
+      winColor: "#f5b82e",
+      winInk: "#1a1200",
+      plinko: {
+        prizeLabel: "PREMIO",
+        outLabel: "afuera",
+        tickerHeading: "Cayendo",
+        boardAriaLabel:
+          "Tablero de plinko: cada participante cae como una pelotita y solo una entra en el cajón del premio.",
+        pegColor: "#9fb8e6",
+        ballColors: ["#2a63e0", "#e11d2e", "#4f7fe8", "#b3121f", "#1d4ed8"],
+        ballInk: "#ffffff",
+      },
+    },
     csv: {
       filenamePrefix: "sorteo-cloudsecurityspace",
       headers: ["nombre", "email", "dni_ult_3", "premio", "ganó_el"],
+      participantsFilenamePrefix: "participantes-cloudsecurityspace",
+      participantsHeaders: [
+        "nombre",
+        "email",
+        "dni_ult_3",
+        "inscripto_el",
+        "ganó_el",
+        "premio",
+      ],
+    },
+    email: {
+      from: "Cloud Security Space · Ekoparty <no-reply@cloudsecurityspace.org>",
+      subject: "¡Ganaste {prize}!",
+      body: "Hola {name},\n\n¡Felicitaciones! Ganaste el premio {prize} en el sorteo de Cloud Security Space · Ekoparty 2026.\n\nAcercate al stand de Cloud Security Space para retirarlo.\n\nEl equipo de Cloud Security Space",
     },
     messages: {
       sponsorsLabel: "Sponsors",
@@ -338,6 +470,10 @@ export const siteConfig = defineSiteConfig({
       close: "Cerrar (Esc)",
       muteSound: "Silenciar ruleta",
       unmuteSound: "Activar sonido",
+      menu: "Menú",
+      menuOpen: "Abrir menú",
+      menuClose: "Cerrar menú",
+      exportParticipantsCsv: "Exportar CSV de participantes",
       titleAriaLabel: "Título del sorteo",
       editTitle: "Editar título",
       spin: "Girar",
@@ -380,6 +516,8 @@ export const siteConfig = defineSiteConfig({
       confirmReset: "¿Reiniciar el sorteo?",
       loadFailed: "No se pudo cargar la lista.",
       confirmFailed: "No se pudo confirmar al ganador/a. Intentá de nuevo.",
+      reloadFailed:
+        "Ganador/a confirmado/a, pero no se pudo actualizar la lista. Actualizala a mano.",
       prizeFailed: "No se pudo guardar el premio.",
       undoFailed: "No se pudo deshacer.",
       deleteFailed: "No se pudo eliminar al participante.",
@@ -393,6 +531,28 @@ export const siteConfig = defineSiteConfig({
       prizeRouteFailed: "No se pudo guardar el premio.",
       undoRouteFailed: "No se pudo deshacer.",
       resetRouteFailed: "No se pudo reiniciar.",
+      notifyByEmail: "Avisar por correo",
+      notifyAriaLabel: "{action}: {name}",
+      resendEmail: "Reenviar correo",
+      notifiedBadge: "Avisado {time}",
+      winnerConfirmed: "Ganador/a confirmado/a ✓",
+      done: "Listo",
+      emailPreviewHeading: "Correo al ganador/a",
+      emailTo: "Para",
+      emailFrom: "De",
+      emailSubject: "Asunto",
+      emailBody: "Mensaje",
+      emailMessageId: "ID del mensaje",
+      emailSending: "Enviando…",
+      emailSent: "Enviado (simulado) ✓",
+      emailSimulatedNote:
+        "Simulación: no se envió ningún correo real. Esta es una vista previa de lo que recibiría el/la ganador/a.",
+      notifyFailed: "No se pudo enviar el correo. Intentá de nuevo.",
+      retry: "Reintentar",
+      notifyNotWinner: "Este participante no ganó.",
+      notifyNoPrize: "Asigná un premio antes de avisarle al ganador/a.",
+      notifyInvalidId: "Id inválido.",
+      notifyRouteFailed: "No se pudo enviar el correo.",
     },
   },
 
