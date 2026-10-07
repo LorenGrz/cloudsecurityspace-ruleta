@@ -23,18 +23,31 @@ from the **same Supabase project** and draws winners.
   stays out across reloads and machines. **Reset draw** clears every `won_at`
   and `prize`.
 - **View winners** modal: full list, CSV export, edit prize, undo.
+- **Notify by email (simulated)**: after confirming, or per winner in the
+  winners list. Shows a preview (To / From / Subject / Body) and stamps
+  `notified_at` ("Notified" badge). Nothing is actually sent — `MockEmailSender`
+  in `@openruleta/core` stands in for a real provider. Copy lives in
+  `siteConfig.ruleta.email`.
+
+- **Sound**: every draw mode plays through Tone.js
+  (`src/lib/sound/toneEngine.ts`), loaded lazily on the first Spin click so no
+  `AudioContext` exists before that; it falls back to the plain WebAudio
+  engine (`webAudioEngine.ts`) if `tone` fails to load. Swap the implementation
+  by editing `useSoundEngine.ts` — modes only talk to the `SoundEngine`
+  interface in `types.ts`, so either engine (or a new one) drops in unchanged.
 
 ## Endpoints
 
-| Method   | Route                             | Purpose                           |
-| -------- | --------------------------------- | --------------------------------- |
-| `GET`    | `/api/participants`               | List from Supabase (with `wonAt`) |
-| `DELETE` | `/api/participants { id }`        | Delete that participant           |
-| `DELETE` | `/api/participants { all: true }` | Delete every participant          |
-| `POST`   | `/api/winners { id, prize? }`     | Mark winner (`won_at = now()`)    |
-| `PATCH`  | `/api/winners { id, prize }`      | Set / edit the prize              |
-| `DELETE` | `/api/winners { id }`             | Undo a winner                     |
-| `POST`   | `/api/winners/reset`              | Clear every `won_at` and `prize`  |
+| Method   | Route                             | Purpose                                                             |
+| -------- | --------------------------------- | ------------------------------------------------------------------- |
+| `GET`    | `/api/participants`               | List from Supabase (with `wonAt`)                                   |
+| `DELETE` | `/api/participants { id }`        | Delete that participant                                             |
+| `DELETE` | `/api/participants { all: true }` | Delete every participant                                            |
+| `POST`   | `/api/winners { id, prize? }`     | Mark winner (`won_at = now()`)                                      |
+| `PATCH`  | `/api/winners { id, prize }`      | Set / edit the prize                                                |
+| `DELETE` | `/api/winners { id }`             | Undo a winner                                                       |
+| `POST`   | `/api/winners/reset`              | Clear every `won_at` and `prize`                                    |
+| `POST`   | `/api/winners/notify { id }`      | Simulated winner email + `notified_at` (contract in the route file) |
 
 ## Env (`.env.local` in this directory)
 
