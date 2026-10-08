@@ -253,6 +253,8 @@ export type SiteConfig = {
       confirmWinner: string;
       saving: string;
       spinAgain: string;
+      /** Closes the winner modal without confirming; the person stays in the pool. */
+      cancelDraw: string;
       winnersHeading: string;
       exportCsv: string;
       noWinners: string;
@@ -491,6 +493,7 @@ export const siteConfig = defineSiteConfig({
       confirmWinner: "Confirmar ganador/a",
       saving: "Guardando…",
       spinAgain: "Saltear y girar de nuevo",
+      cancelDraw: "Cancelar — no cuenta",
       winnersHeading: "Ganadores ({n})",
       exportCsv: "Exportar CSV",
       noWinners: "Todavía no hay ganadores.",
