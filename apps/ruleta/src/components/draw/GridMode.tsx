@@ -4,8 +4,11 @@ import { useRef, useState, type CSSProperties } from "react";
 
 import { siteConfig } from "@openruleta/config";
 
-import { fitGrid, gridHopSchedule } from "@/lib/draw/gridLayout";
-import { createRng } from "@/lib/draw/random";
+import {
+  fitGrid,
+  gridSweepSchedule,
+  type GridHop,
+} from "@/lib/draw/gridLayout";
 
 import type { DrawModeProps } from "./types";
 import { SETTLE_GRACE_MS, useDrawRun, useSettleOnce } from "./useDrawRun";
@@ -13,12 +16,17 @@ import { useElementSize } from "./useElementSize";
 
 const { wheelDurationMs, drawModes } = siteConfig.ruleta;
 const GAP = 8;
-const HOPS = 26;
-const REDUCED_HOPS = 3;
 const REDUCED_DURATION_MS = 700;
 const HOLD_MS = 700;
+/** Sound ticks never play closer together than this, however fast the sweep. */
+const TICK_MIN_GAP_MS = 28;
 
-type Highlight = { runId: number; index: number; done: boolean };
+type Highlight = {
+  runId: number;
+  hops: GridHop[];
+  step: number;
+  done: boolean;
+};
 
 export function GridMode({
   pool,
@@ -38,39 +46,39 @@ export function GridMode({
     if (winnerIndex === null || n === 0) return;
     const id = runId;
     const durationMs = reducedMotion ? REDUCED_DURATION_MS : wheelDurationMs;
-    const hops = gridHopSchedule(
-      n,
-      winnerIndex,
-      durationMs,
-      reducedMotion ? REDUCED_HOPS : Math.min(HOPS, Math.max(6, n * 3)),
-      createRng((Math.random() * 2 ** 32) >>> 0),
-    );
+    const hops = gridSweepSchedule(n, winnerIndex, durationMs);
     let frame = 0;
     let hold = 0;
-    let shown = -1;
+    let step = -1;
     let startedAt: number | null = null;
+    let lastTickAt = -Infinity;
 
-    const step = (now: number) => {
+    const tick = (now: number) => {
       startedAt ??= now;
       const elapsed = now - startedAt;
-      let current = shown;
+      let current = step;
       while (current + 1 < hops.length && hops[current + 1].atMs <= elapsed) {
         current++;
       }
-      if (current !== shown && current >= 0) {
-        shown = current;
+      if (current !== step && current >= 0) {
+        step = current;
         const done = current === hops.length - 1;
-        setHighlight({ runId: id, index: hops[current].index, done });
+        setHighlight({ runId: id, hops, step: current, done });
         if (done) {
           sound.land();
           hold = window.setTimeout(() => settleOnce(id, onSettled), HOLD_MS);
           return;
         }
-        sound.tick();
+        // Throttled (I-grid): at the sweep's fastest, several hops land per
+        // animation frame; without this the tick would saturate into noise.
+        if (now - lastTickAt >= TICK_MIN_GAP_MS) {
+          sound.tick();
+          lastTickAt = now;
+        }
       }
-      frame = requestAnimationFrame(step);
+      frame = requestAnimationFrame(tick);
     };
-    frame = requestAnimationFrame(step);
+    frame = requestAnimationFrame(tick);
     // Backstop (I3): settles the run even if the rAF loop above never
     // reaches its own completion handler, so a stuck mode cannot leave the
     // UI parked on "spinning" forever.
@@ -91,6 +99,9 @@ export function GridMode({
     highlight && highlight.runId === runId && winnerIndex !== null
       ? highlight
       : null;
+  const currentIndex = active
+    ? (active.hops[active.step]?.index ?? null)
+    : null;
 
   const winStyle: CSSProperties = {
     backgroundColor: drawModes.winColor,
@@ -111,22 +122,39 @@ export function GridMode({
           }}
         >
           {pool.map((p, i) => {
-            const lit = active?.index === i;
-            const won = lit && active.done;
+            const isCurrent = currentIndex === i;
+            const won = isCurrent && (active?.done ?? false);
+            const dimmed = (active?.done ?? false) && !won;
+
+            let tone =
+              "bg-gradient-to-br from-white/[0.08] to-white/[0.02] text-white/80";
+            let style: CSSProperties | undefined;
+            if (won) {
+              tone = "draw-win-pulse";
+              style = winStyle;
+            } else if (isCurrent) {
+              // Only the card under the sweep lights up; the ones it already
+              // passed snap straight back (no trail, no fade) so the slow
+              // final hops read as a single moving light.
+              tone = "bg-primary text-white";
+              style = { boxShadow: "0 0 14px var(--color-primary)" };
+            } else if (dimmed) {
+              style = { opacity: 0.55 };
+            }
+
             return (
               <li
                 key={p.id}
                 title={p.name}
-                style={won ? winStyle : undefined}
-                className={`flex min-w-0 items-center justify-center rounded-lg px-[0.6em] font-semibold leading-tight transition-colors duration-100 ${
-                  won
-                    ? "draw-win-pulse"
-                    : lit
-                      ? "bg-primary text-white"
-                      : "bg-white/[0.06] text-white/80"
-                }`}
+                style={style}
+                className={`relative flex min-w-0 items-center justify-center rounded-lg px-[0.6em] font-semibold leading-tight ${tone}`}
               >
                 <span className="truncate">{p.name}</span>
+                {!won && (
+                  <span className="absolute left-1 top-0.5 text-[0.5em] font-normal text-white/25">
+                    {i + 1}
+                  </span>
+                )}
               </li>
             );
           })}
