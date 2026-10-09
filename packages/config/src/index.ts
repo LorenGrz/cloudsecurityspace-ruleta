@@ -68,7 +68,9 @@ export type PosterConfig = {
 };
 
 /**
- * Winner email (simulated — OpenRuleta sends nothing). `{name}` and `{prize}`
+ * Winner email. Sent over SMTP when apps/ruleta has SMTP_USER / SMTP_PASS set
+ * (the address is then replaced by the SMTP account, the display name kept);
+ * otherwise simulated, nothing is sent. `{name}` and `{prize}`
  * are substituted in `subject` and `body`; `body` is plain text, blank lines
  * become paragraphs in the HTML preview.
  */
@@ -253,6 +255,8 @@ export type SiteConfig = {
       confirmWinner: string;
       saving: string;
       spinAgain: string;
+      /** Closes the winner modal without confirming; the person stays in the pool. */
+      cancelDraw: string;
       winnersHeading: string;
       exportCsv: string;
       noWinners: string;
@@ -297,6 +301,8 @@ export type SiteConfig = {
       emailMessageId: string;
       emailSending: string;
       emailSent: string;
+      /** Status once a real (SMTP) send succeeded. */
+      emailDelivered: string;
       emailSimulatedNote: string;
       notifyFailed: string;
       retry: string;
@@ -491,6 +497,7 @@ export const siteConfig = defineSiteConfig({
       confirmWinner: "Confirmar ganador/a",
       saving: "Guardando…",
       spinAgain: "Saltear y girar de nuevo",
+      cancelDraw: "Cancelar — no cuenta",
       winnersHeading: "Ganadores ({n})",
       exportCsv: "Exportar CSV",
       noWinners: "Todavía no hay ganadores.",
@@ -535,6 +542,7 @@ export const siteConfig = defineSiteConfig({
       emailMessageId: "ID del mensaje",
       emailSending: "Enviando…",
       emailSent: "Enviado (simulado) ✓",
+      emailDelivered: "Correo enviado ✓",
       emailSimulatedNote:
         "Simulación: no se envió ningún correo real. Esta es una vista previa de lo que recibiría el/la ganador/a.",
       notifyFailed: "No se pudo enviar el correo. Intentá de nuevo.",
